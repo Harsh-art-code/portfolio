@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>University Finder - Fetch with async/await</title>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f2f4f8;
+    margin: 0;
+    padding: 20px;
+  }
+  .container {
+    max-width: 700px;
+    margin: auto;
+  }
+  h1 { text-align: center; }
+
+  .search-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+  }
+  .search-box input {
+    flex: 1;
+    padding: 10px;
+    font-size: 16px;
+  }
+  button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 5px;
+    background: #4a6cf7;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  button:hover { background: #2f4fd6; }
+  button:disabled { background: gray; cursor: not-allowed; }
+
+  #status { font-weight: bold; margin: 10px 0; }
+  .error { color: red; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+  }
+  th, td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+  }
+  th { background: #4a6cf7; color: white; }
+  td a { color: #4a6cf7; word-break: break-all; }
+
+  /* Allow the table to scroll sideways on small screens */
+  .table-wrap { overflow-x: auto; }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>🎓 University Finder</h1>
+
+  <div class="search-box">
+    <input type="text" id="countryInput" placeholder="Enter a country name (e.g. Japan)">
+    <button id="searchBtn">Search</button>
+  </div>
+
+  <p id="status"></p>
+  <div class="table-wrap" id="results"></div>
+</div>
+
+<script>
+  var countryInput = document.getElementById("countryInput");
+  var searchBtn    = document.getElementById("searchBtn");
+  var statusText   = document.getElementById("status");
+  var results      = document.getElementById("results");
+
+  // Free API, no API key needed
+  var API_URL = "http://universities.hipolabs.com/search?country=";
+
+  // "async" lets us use "await" inside this function
+  async function searchUniversities() {
+    var country = countryInput.value.trim();
+
+    results.innerHTML = "";
+    statusText.className = "";
+
+    if (country === "") {
+      statusText.textContent = "Please enter a country name.";
+      statusText.className = "error";
+      return;
+    }
+
+    statusText.textContent = "Loading...";
+    searchBtn.disabled = true;
+
+    // try/catch handles any errors
+    try {
+      // "await" pauses here until the server responds
+      var response = await fetch(API_URL + encodeURIComponent(country));
+
+      if (!response.ok) {
+        throw new Error("Server error: " + response.status);
+      }
+
+      // Wait for the JSON data
+      var universities = await response.json();
+
+      if (universities.length === 0) {
+        statusText.textContent = "No universities found for \"" + country + "\".";
+      } else {
+        statusText.textContent = "Found " + universities.length + " universities in " + country + ":";
+        showTable(universities);
+      }
+
+    } catch (error) {
+      statusText.textContent = "Something went wrong: " + error.message;
+      statusText.className = "error";
+    } finally {
+      // Runs in every case, so the button always works again
+      searchBtn.disabled = false;
+    }
+  }
+
+  // Build a table with a for loop
+  function showTable(universities) {
+    var table = document.createElement("table");
+
+    // Table header
+    var header = table.insertRow();
+    var titles = ["#", "University Name", "Website"];
+    for (var i = 0; i < titles.length; i++) {
+      var th = document.createElement("th");
+      th.textContent = titles[i];
+      header.appendChild(th);
+    }
+
+    // One row for each university
+    for (var j = 0; j < universities.length; j++) {
+      var uni = universities[j];
+      var row = table.insertRow();
+
+      row.insertCell().textContent = j + 1;
+      row.insertCell().textContent = uni.name;
+
+      var linkCell = row.insertCell();
+      var link = document.createElement("a");
+      link.href = uni.web_pages[0];
+      link.textContent = uni.web_pages[0];
+      link.target = "_blank";
+      link.rel = "noopener";
+      linkCell.appendChild(link);
+    }
+
+    results.appendChild(table);
+  }
+
+  searchBtn.addEventListener("click", searchUniversities);
+
+  countryInput.addEventListener("keypress", function (event) {
+    if (event.key === "Enter") {
+      searchUniversities();
+    }
+  });
+</script>
+
+</body>
+</html>
